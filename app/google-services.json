@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "308950381744",
+    "project_id": "moviegram-f31cf",
+    "storage_bucket": "moviegram-f31cf.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:308950381744:android:20705c0ec1095dedf53775",
+        "android_client_info": {
+          "package_name": "com.example.moviegram"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBKByxVt4O5fzqdCQTFWioyVEBsQ6kLgRI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

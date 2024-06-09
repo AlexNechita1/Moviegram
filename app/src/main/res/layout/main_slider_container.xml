@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+
+    android:layout_height="match_parent">
+    <ImageView
+        android:id="@+id/imageSlider"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:adjustViewBounds="false"
+        android:scaleType="fitCenter"/>
+
+    <ImageView
+        android:id="@+id/gradient_left"
+        android:layout_width="100dp"
+        android:layout_height="match_parent"
+        app:layout_constraintStart_toStartOf="@+id/imageSlider"
+        app:srcCompat="@drawable/gradient_horizontal_background_left" />
+
+    <ImageView
+        android:id="@+id/gradient"
+        android:layout_width="match_parent"
+        android:layout_height="200dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:srcCompat="@drawable/gradient_background" />
+
+    <ImageView
+        android:id="@+id/gradient_right"
+        android:layout_width="80dp"
+        android:layout_height="match_parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:srcCompat="@drawable/gradient_horizontal_background_right" />
+
+    <TextView
+        android:id="@+id/slider_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="TextView"
+        android:textColor="@color/white"
+        android:layout_marginStart="8dp"
+        android:textSize="22sp"
+        app:layout_constraintBottom_toTopOf="@+id/slider_rating"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <TextView
+        android:id="@+id/slider_rating"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="TextView"
+        android:textColor="@color/white"
+        android:textStyle="bold"
+        android:drawableStart="@drawable/star"
+        android:drawablePadding="8dp"
+        android:textSize="14sp"
+        app:layout_constraintBottom_toTopOf="@id/slider_main_plot"
+        app:layout_constraintStart_toStartOf="@+id/slider_main_plot" />
+
+    <TextView
+        android:id="@+id/slider_duration"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="TextView"
+        android:textColor="@color/white"
+        android:textStyle="bold"
+        android:drawableStart="@drawable/time"
+        android:drawablePadding="8dp"
+        android:textSize="14sp"
+        android:layout_marginLeft="8dp"
+        app:layout_constraintBottom_toBottomOf="@+id/slider_rating"
+        app:layout_constraintStart_toEndOf="@+id/slider_rating" />
+
+    <TextView
+        android:id="@+id/slider_main_plot"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:paddingEnd="18dp"
+        android:layout_marginBottom="16dp"
+        android:text="TextView"
+        android:maxLines="2"
+        android:ellipsize="end"
+        android:textColor="@color/white"
+        android:textSize="16sp"
+        app:layout_constraintBottom_toBottomOf="@+id/imageSlider"
+        app:layout_constraintStart_toStartOf="parent" />
+
+
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,0 +1,21 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme. -->
+    <style name="Base.Theme.Moviegram" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <!-- Customize your light theme here. -->
+        <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
+        <item name="colorPrimaryDark">@color/main_color</item>
+    </style>
+
+    <style name="Theme.Moviegram" parent="Base.Theme.Moviegram" />
+    
+    <style name="roundedImageView">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">50%</item>
+    </style>
+
+    <style name="CustomAlertDialogTheme" parent="Theme.AppCompat.Light.Dialog.Alert">
+
+        <item name="android:background">@color/dark_blue</item> <!-- Change this to your desired background color -->
+        <item name="android:textColorPrimary">@color/white</item> <!-- Change this to your desired text color -->
+    </style>
+</resources>
