@@ -169,7 +169,34 @@
                 android:layout_marginStart="8dp"
                 app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
                 android:orientation="horizontal"/>
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/yellow"
+                android:layout_marginStart="8dp"
+                android:layout_marginBottom="4dp"
+                android:textSize="18sp"
+                android:text="Post a review:"/>
 
+            <EditText
+                android:id="@+id/edittext_post"
+                android:layout_width="match_parent"
+                android:layout_height="150dp"
+                android:padding="8dp"
+                android:textAlignment="textStart"
+                android:textColor="@color/white"
+                android:textColorHint="@color/white"
+                android:textSize="14sp" />
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/button_post"
+                style="@android:style/Widget.Button"
+                android:layout_width="70dp"
+                android:layout_height="35dp"
+                android:background="@drawable/orange_button_background"
+                android:text="Post"
+                android:layout_gravity="center"
+                android:textColor="@color/white"
+                android:textSize="16sp" />
 
 
         </LinearLayout>

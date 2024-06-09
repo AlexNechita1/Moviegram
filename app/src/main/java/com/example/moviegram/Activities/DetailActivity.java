@@ -5,9 +5,12 @@ import static android.content.ContentValues.TAG;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -19,6 +22,7 @@ import com.example.moviegram.Adapters.CastAdapter;
 import com.example.moviegram.Adapters.CategoryAdapter;
 import com.example.moviegram.Objects.CastItem;
 import com.example.moviegram.Objects.CategoryItem;
+import com.example.moviegram.Objects.Post;
 import com.example.moviegram.R;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.OnFailureListener;
@@ -26,6 +30,8 @@ import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FieldValue;
@@ -34,19 +40,26 @@ import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.google.firebase.firestore.QuerySnapshot;
 import com.google.firebase.firestore.SetOptions;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.TimeZone;
 
 public class DetailActivity extends AppCompatActivity {
-    private String title;
+    private String title,downloadUrl,username,userTitle,profileUrl;
     private TextView titleName,titleRating, titleReleaseYear,titleMainPlot;
     private RecyclerView recyclerCategory,recyclerCast;
     private ProgressBar loadingPoster;
     private ImageView poster,addBtn,likeBtn;
     private FirebaseFirestore db;
     private FirebaseAuth mAuth;
+    private Button postBtn;
+    private EditText contentEdit;
+    private DatabaseReference postsRef;
     private boolean isLiked,isInWatchlist;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -85,6 +98,10 @@ public class DetailActivity extends AppCompatActivity {
                             if (task.isSuccessful()) {
                                 DocumentSnapshot document = task.getResult();
                                 if (document.exists()) {
+                                    username = document.getString("username") != null ? document.getString("username") : "";
+                                    userTitle = document.getString("title") != null ? document.getString("title") : "";
+                                    profileUrl = document.getString("profile_picture") != null ? document.getString("profile_picture") : "";
+
                                     List<String> likedTitles = new ArrayList<>();
                                     List<Object> liked = (List<Object>) document.get("liked");
                                     if (liked != null) {
@@ -140,6 +157,7 @@ public class DetailActivity extends AppCompatActivity {
                                 String title = document.getString("title") != null ? document.getString("title") : "";
                                 String mainPlot = document.getString("mainPlot") != null ? document.getString("mainPlot") : "";
                                 String imageUrl = document.getString("downlaoadURL") != null ? document.getString("downlaoadURL") : "";
+                                downloadUrl = imageUrl;
                                 String releaseYear = document.getLong("releaseYear") != null ? Long.toString(document.getLong("releaseYear")) : "";
                                 String aggregateRating = document.getDouble("aggregateRating") != null ? Double.toString(document.getDouble("aggregateRating")) : "";
                                 List<CategoryItem> genresList = new ArrayList<>();
@@ -292,8 +310,46 @@ public class DetailActivity extends AppCompatActivity {
                 }
             }
         });
+        initPost();
 
     }
 
+    private void initPost() {
+        FirebaseDatabase database = FirebaseDatabase.getInstance("https://moviegram-f31cf-default-rtdb.europe-west1.firebasedatabase.app/");
+        postsRef = database.getReference("posts");
+        postBtn = findViewById(R.id.button_post);
+        contentEdit = findViewById(R.id.edittext_post);
+        postBtn.setOnClickListener(v -> {
+            String content = contentEdit.getText().toString().trim();
+            if (!content.isEmpty()) {
+                addPostToDatabase(content);
+            } else {
+                Toast.makeText(DetailActivity.this, "Title and content cannot be empty", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+    private void addPostToDatabase(String content) {
+
+        String postId = postsRef.push().getKey();
+
+        if (postId != null) {
+            Post post = new Post(username, getCurrentTimestamp(),downloadUrl,profileUrl,userTitle,content,titleName.getText().toString().trim());
+            postsRef.child(postId).setValue(post).addOnCompleteListener(task -> {
+                if (task.isSuccessful()) {
+                    Toast.makeText(DetailActivity.this, "Post added successfully", Toast.LENGTH_SHORT).show();
+                    contentEdit.setText("");
+                } else {
+                    Toast.makeText(DetailActivity.this, "Failed to add post", Toast.LENGTH_SHORT).show();
+                }
+            });
+        } else {
+            Toast.makeText(DetailActivity.this, "postId == null", Toast.LENGTH_SHORT).show();
+        }
+    }
+    private String getCurrentTimestamp() {
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault());
+        sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
+        return sdf.format(new Date());
+    }
 
 }

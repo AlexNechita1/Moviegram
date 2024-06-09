@@ -36,7 +36,7 @@ public class MainActivity extends AppCompatActivity {
     private ViewPager2 preferencesSlider,matchesSlider;
     private Handler sliderHandler = new Handler();
     private ProgressBar loadingMatchSlider;
-    private ImageView accountButton,filteredSearchButton,watchListBtn;
+    private ImageView accountButton,filteredSearchButton,watchListBtn,feedBtn;
     private TextView welcomeName;
     private FirebaseAuth mAuth;
 
@@ -85,8 +85,15 @@ public class MainActivity extends AppCompatActivity {
         welcomeName = findViewById(R.id.textview_name);
         accountButton = findViewById(R.id.imagebutton_account);
         filteredSearchButton = findViewById(R.id.img_search);
+        feedBtn = findViewById(R.id.feed_button);
         watchListBtn = findViewById(R.id.watch_list);
 
+        feedBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                startActivity(new Intent(MainActivity.this, FeedActivity.class));
+            }
+        });
         watchListBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {

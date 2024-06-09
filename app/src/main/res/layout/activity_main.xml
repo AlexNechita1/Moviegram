@@ -210,7 +210,7 @@
                     android:orientation="vertical">
 
                     <ImageView
-                        android:id="@+id/filtered_search_button"
+                        android:id="@+id/feed_button"
                         android:layout_width="38dp"
                         android:layout_height="38dp"
                         android:layout_gravity="center"

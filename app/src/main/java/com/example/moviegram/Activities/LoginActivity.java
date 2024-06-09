@@ -21,6 +21,7 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.constraintlayout.widget.ConstraintLayout;
 
 import com.example.moviegram.R;
 import com.google.android.gms.tasks.OnCompleteListener;
@@ -42,6 +43,7 @@ public class LoginActivity extends AppCompatActivity {
     private Button loginBtn,registerBtn;
     private ProgressBar progressBar,progressBar2;
     private FirebaseAuth mAuth;
+    private ConstraintLayout loginConstraint,signupConstraint;
     private EditText mailEdt, passEdt, signupUsername,signupEmail,signupPass,signupRePass;
 
     @Override
@@ -68,6 +70,8 @@ public class LoginActivity extends AppCompatActivity {
         signupRePass = findViewById(R.id.input_confirm_pass_signup);
         registerBtn = findViewById(R.id.button_signup);
         progressBar2 = findViewById(R.id.progressBar2);
+        loginConstraint = findViewById(R.id.login_form);
+        signupConstraint = findViewById(R.id.signup_form);
         mAuth=FirebaseAuth.getInstance();
         registerBtn.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -191,50 +195,46 @@ public class LoginActivity extends AppCompatActivity {
 
     }
     private void transitionLoginForm(){
-        View lastLayout=findViewById(R.id.signup_form);
-        lastLayout.setVisibility(View.GONE);
-
         ViewGroup parent = findViewById(R.id.main);
-        View layout = findViewById(R.id.login_form);
         Transition transition = new Slide(Gravity.START);
         transition.setDuration(450);
-        transition.addTarget(R.id.login_form);
         transition.setInterpolator(new AccelerateDecelerateInterpolator());
         TransitionManager.beginDelayedTransition(parent, transition);
-        layout.setVisibility(View.VISIBLE);
+
+        signupConstraint.setVisibility(View.GONE);
+        loginConstraint.setVisibility(View.VISIBLE);
+
 
     }
     private void transitionSignupForm(){
-        View lastLayout=findViewById(R.id.login_form);
-        lastLayout.setVisibility(View.GONE);
-
-        ViewGroup parent = findViewById(R.id.main_activity_root_view);
-        View layout = findViewById(R.id.signup_form);
+        ViewGroup parent = findViewById(R.id.main);
         Transition transition = new Slide(Gravity.END);
         transition.setDuration(450);
-        transition.addTarget(R.id.signup_form);
         transition.setInterpolator(new AccelerateDecelerateInterpolator());
         TransitionManager.beginDelayedTransition(parent, transition);
-        layout.setVisibility(View.VISIBLE);
+
+        loginConstraint.setVisibility(View.GONE);
+        signupConstraint.setVisibility(View.VISIBLE);
     }
 
     private void underlineRadioButton(RadioButton radioButton) {
         CharSequence text = radioButton.getText();
-
         SpannableString spannableString = new SpannableString(text);
         spannableString.setSpan(new UnderlineSpan(), 0, spannableString.length(), 0);
-
-        radioButton.setText(spannableString);
-
         spannableString.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.light_blue)), 0, spannableString.length(), 0);
+        radioButton.setText(spannableString);
     }
 
     private void removeUnderline(RadioButton radioButton) {
-
         CharSequence text = radioButton.getText();
-
         SpannableString spannableString = new SpannableString(text);
-        spannableString.removeSpan(spannableString.getSpans(0, spannableString.length(), UnderlineSpan.class)[0]);
+
+        UnderlineSpan[] underlines = spannableString.getSpans(0, spannableString.length(), UnderlineSpan.class);
+        for (UnderlineSpan underline : underlines) {
+            spannableString.removeSpan(underline);
+        }
+
+        spannableString.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.white)), 0, spannableString.length(), 0);
 
         radioButton.setText(spannableString);
     }
