@@ -111,7 +111,7 @@ public class FirstSelectionActivity extends AppCompatActivity {
         movieAdapter = new SearchMovieAdapter(allMovies, movie -> {
             if(!selectedMovies.contains(movie.getTitle())){
                 selectedMovies.add(movie.getTitle());
-
+                Toast.makeText(FirstSelectionActivity.this, "Movie added", Toast.LENGTH_SHORT).show();
             }
             hideKeyboard(this);
         });
@@ -204,57 +204,45 @@ public class FirstSelectionActivity extends AppCompatActivity {
                     }
                 }
 
-                if(!selectedMovies.isEmpty()){
+                if (!selectedMovies.isEmpty()) {
                     DocumentReference userRef = db.collection("Users").document(mAuth.getUid());
-
                     userRef.update("liked", FieldValue.arrayUnion(selectedMovies.toArray()))
-                            .addOnSuccessListener(new OnSuccessListener<Void>() {
-                                @Override
-                                public void onSuccess(Void aVoid) {
-                                    for(String movieTitle:selectedMovies){
-                                        db.collection("Movies")
-                                                .whereEqualTo("title", movieTitle)
-                                                .get()
-                                                .addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
-                                                    @Override
-                                                    public void onSuccess(QuerySnapshot queryDocumentSnapshots) {
-                                                        for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
-                                                            if (document.exists()) {
-                                                                List<String> genresList = new ArrayList<>();
-                                                                List<Object> genres = (List<Object>) document.get("genres");
-                                                                if (genres != null) {
-                                                                    for (Object obj : genres) {
-                                                                        if (obj instanceof String) {
-                                                                            genresList.add((String) obj);
-                                                                        }
-                                                                    }
+                            .addOnSuccessListener(aVoid -> {
+                                for (String movieTitle : selectedMovies) {
+                                    db.collection("Movies")
+                                            .whereEqualTo("title", movieTitle)
+                                            .get()
+                                            .addOnSuccessListener(queryDocumentSnapshots -> {
+                                                for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
+                                                    if (document.exists()) {
+                                                        List<String> genresList = new ArrayList<>();
+                                                        List<Object> genres = (List<Object>) document.get("genres");
+                                                        if (genres != null) {
+                                                            for (Object obj : genres) {
+                                                                if (obj instanceof String) {
+                                                                    genresList.add((String) obj);
                                                                 }
-                                                                updateGenreCount(mAuth.getUid(),genresList);
-
-                                                            } else {
-                                                                Log.w(TAG, "Error getting documents.");
                                                             }
                                                         }
+                                                        updateGenreCount(mAuth.getUid(), genresList);
+                                                    } else {
+                                                        Log.w(TAG, "Error getting documents.");
                                                     }
-                                                })
-                                                .addOnFailureListener(new OnFailureListener() {
-                                                    @Override
-                                                    public void onFailure(@NonNull Exception e) {
-                                                        Log.e(TAG, "Error getting documents", e);
-                                                    }
-                                                });
-                                    }
-                                    Log.d("Firestore", "Liked movies successfully added!");
+                                                }
+                                                startActivity(new Intent(FirstSelectionActivity.this, MainActivity.class));
+                                            })
+                                            .addOnFailureListener(e -> {
+                                                Log.e(TAG, "Error getting documents", e);
+                                                startActivity(new Intent(FirstSelectionActivity.this, MainActivity.class));
+                                            });
                                 }
+                                Log.d("Firestore", "Liked movies successfully added!");
                             })
-                            .addOnFailureListener(new OnFailureListener() {
-                                @Override
-                                public void onFailure(@NonNull Exception e) {
-                                    Log.w("Firestore", "Error adding liked movies", e);
-                                }
+                            .addOnFailureListener(e -> {
+                                Log.w("Firestore", "Error adding liked movies", e);
                             });
                 }
-                startActivity(new Intent(FirstSelectionActivity.this, MainActivity.class));
+
 
             }
         });
@@ -263,39 +251,28 @@ public class FirstSelectionActivity extends AppCompatActivity {
     public void updateGenreCount(String userId, List<String> genres) {
         DocumentReference userRef = db.collection("Users").document(userId);
 
-        // Fetch current document and update genre counts
-        userRef.get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
-            @Override
-            public void onComplete(Task<DocumentSnapshot> task) {
-                if (task.isSuccessful()) {
-                    DocumentSnapshot document = task.getResult();
-                    if (document.exists()) {
-                        // Get current data as a Map
-                        Map<String, Object> map = document.getData();
+        db.runTransaction(transaction -> {
+                    DocumentSnapshot document = transaction.get(userRef);
 
-                        // Initialize or update genre counts
+                    if (document.exists()) {
+                        Map<String, Object> map = document.getData();
                         Map<String, Object> genreCounts = map != null && map.containsKey("genreCounts") ?
                                 (Map<String, Object>) map.get("genreCounts") : new HashMap<>();
 
-                        // Update genre counts for the specified genres
                         for (String genre : genres) {
                             Long count = genreCounts.containsKey(genre) ? (Long) genreCounts.get(genre) + 1 : 1;
                             genreCounts.put(genre, count);
                         }
 
-                        // Update or create the genreCounts map in Firestore
-                        userRef.update("genreCounts", genreCounts)
-                                .addOnSuccessListener(aVoid -> Log.d(TAG, "Genre counts updated successfully"))
-                                .addOnFailureListener(e -> Log.e(TAG, "Error updating genre counts", e));
+                        transaction.update(userRef, "genreCounts", genreCounts);
                     } else {
                         Log.d(TAG, "No such document");
                     }
-                } else {
-                    Log.e(TAG, "Error getting document", task.getException());
-                }
-            }
-        });
+                    return null;
+                }).addOnSuccessListener(aVoid -> Log.d(TAG, "Genre counts updated successfully"))
+                .addOnFailureListener(e -> Log.e(TAG, "Error updating genre counts", e));
     }
+
 
     private void initSelected() {
         String category = "Action";

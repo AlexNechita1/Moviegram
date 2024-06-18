@@ -19,6 +19,7 @@ import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.RadioButton;
 import android.widget.SeekBar;
@@ -77,6 +78,7 @@ public class BrowseActivity extends AppCompatActivity implements OnYearSelectedL
     private SearchMovieAdapter searchAdapter;
     private SelectedActorsAdapter selectedActorsAdapter;
     private ReleaseYearAdapter releaseYearAdapter;
+
     private List<String> years,selectedCastName,allAvailableYears;
     private List<CastMember> allCastMembers;
     private List<MovieSearchResult> allMovies;

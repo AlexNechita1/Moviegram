@@ -49,6 +49,7 @@ public class FirstMoviesAdapter extends RecyclerView.Adapter<FirstMoviesAdapter.
     @Override
     public void onBindViewHolder(@NonNull MovieViewHolder holder, int position) {
         Movie movie = movies.get(position);
+        int i = position;
         holder.movieTitle.setText(movie.getTitle());
         holder.setImage(movie.getDownlaoadURL());
         holder.moviePoster.setOnClickListener(new View.OnClickListener() {
@@ -56,7 +57,7 @@ public class FirstMoviesAdapter extends RecyclerView.Adapter<FirstMoviesAdapter.
             public void onClick(View v) {
                 if(!selectedMovies.contains(movie.getTitle())){
                     selectedMovies.add(movie.getTitle());
-                    movies.remove(position);
+                    movies.remove(i);
                     notifyDataSetChanged();
                 }
 

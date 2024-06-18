@@ -85,16 +85,10 @@ public class SettingsActivity extends AppCompatActivity {
         StorageReference storageRef = storage.getReference();
         FirebaseAuth mAuth = FirebaseAuth.getInstance();
         FirebaseFirestore db = FirebaseFirestore.getInstance();
-
-
-
         if (resultCode == RESULT_OK && data != null) {
             Uri selectedImage = data.getData();
-
             StorageReference imagesRef = storageRef.child("profile_pic/" + mAuth.getUid());
-
             UploadTask uploadTask = imagesRef.putFile(selectedImage);
-
             uploadTask.addOnFailureListener(new OnFailureListener() {
                 @Override
                 public void onFailure(@NonNull Exception exception) {
@@ -108,11 +102,8 @@ public class SettingsActivity extends AppCompatActivity {
                         public void onSuccess(Uri uri) {
                             String downloadUrl = uri.toString();
                             String uid = mAuth.getUid();
-
-
                             Map<String, Object> userUpdates = new HashMap<>();
                             userUpdates.put("profile_picture", downloadUrl);
-
                             db.collection("Users").document(uid)
                                     .set(userUpdates, SetOptions.merge())
                                     .addOnSuccessListener(new OnSuccessListener<Void>() {

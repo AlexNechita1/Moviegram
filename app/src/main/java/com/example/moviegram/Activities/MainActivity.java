@@ -27,6 +27,11 @@ import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
@@ -35,6 +40,7 @@ import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.google.firebase.firestore.QuerySnapshot;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -42,26 +48,262 @@ import java.util.List;
 import java.util.Map;
 
 public class MainActivity extends AppCompatActivity {
-    private ViewPager2 topGenresSlider,matchesSlider;
+    private ViewPager2 matchesSlider,topLikedSlider,topPostSlider;
+    private List<ViewPager2> listOfGenresSlider;
+    private List<TextView> listOfGenresTx;
+    private List<ProgressBar> listOfGenresPb;
+    private List<LinearLayout> listOfGenresLinear;
     private Handler sliderHandler = new Handler();
-    private ProgressBar loadingMatchSlider,topGenresPb;
+    private ProgressBar loadingMatchSlider,topLikedPb,topPostPb;
     private FirebaseFirestore db;
-    private LinearLayout accLinear;
-    private ImageView accountButton,filteredSearchButton,watchListBtn,feedBtn;
-    private TextView welcomeName,topGenresText;
+    private LinearLayout accLinear,matchLinear;
+    private ImageView accountButton,filteredSearchButton,watchListBtn,feedBtn,homeButton;
+    private TextView welcomeName;
     private FirebaseAuth mAuth;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
         initView();
-
     }
+    private void populateSliderWithMovies() {
+        Map<String, Integer> movieCountMap = new HashMap<>();
+        FirebaseDatabase database = FirebaseDatabase.getInstance("https://moviegram-f31cf-default-rtdb.europe-west1.firebasedatabase.app/");
+        DatabaseReference postsRef = database.getReference("posts");
+        postsRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                for (DataSnapshot postSnapshot : dataSnapshot.getChildren()) {
+                    String movieTitle = (String) postSnapshot.child("movieTitle").getValue();
+                    if (movieTitle != null) {
+                        movieCountMap.put(movieTitle, movieCountMap.getOrDefault(movieTitle, 0) + 1);
+                    }
+                }
+                List<Map.Entry<String, Integer>> sortedMovies = new ArrayList<>(movieCountMap.entrySet());
+                sortedMovies.sort((e1, e2) -> e2.getValue().compareTo(e1.getValue()));
+                List<String> sortedMovieTitles = new ArrayList<>();
+                for (Map.Entry<String, Integer> entry : sortedMovies) {
+                    sortedMovieTitles.add(entry.getKey());
+                    if (sortedMovieTitles.size() >= 20) {
+                        break;
+                    }
+                }
+                Query query = db.collection("Movies")
+                        .whereIn("title", sortedMovieTitles)
+                        .limit(20);
+                query.get().addOnSuccessListener(queryDocumentSnapshots -> {
+                    List<SliderItem> sliderItems = new ArrayList<>();
+                    for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
+                        if (document.exists()) {
+                            String title = document.getString("title") != null ? document.getString("title") : "";
+                            String mainPlot = document.getString("mainPlot") != null ? document.getString("mainPlot") : "";
+                            String imageUrl = document.getString("downlaoadURL") != null ? document.getString("downlaoadURL") : "";
+                            String releaseYear = document.getLong("releaseYear") != null ? Long.toString(document.getLong("releaseYear")) : "";
+                            String aggregateRating = document.getDouble("aggregateRating") != null ? Double.toString(document.getDouble("aggregateRating")) : "";
+                            sliderItems.add(new SliderItem(imageUrl, title, mainPlot, releaseYear, aggregateRating));
+                        }
+                    }
+                    if (!sliderItems.isEmpty()) {
+                        banners(topPostSlider, sliderItems);
+                        topPostPb.setVisibility(View.GONE);
+                    }
+                });
+            }
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {
+                Log.e(TAG, "unable to get data", databaseError.toException());
+            }
+        });
+    }
+    private void getMostLikedMovies() {
+        db.collection("Users").get().addOnSuccessListener(queryDocumentSnapshots -> {
+            Map<String, Integer> movieCountMap = new HashMap<>();
+            for (QueryDocumentSnapshot userDoc : queryDocumentSnapshots) {
+                List<String> userLiked = (List<String>) userDoc.get("liked");
+                if (userLiked != null) {
+                    for (String movie : userLiked) {
+                        movieCountMap.put(movie, movieCountMap.getOrDefault(movie, 0) + 1);
+                    }
+                }
+            }
+            List<Map.Entry<String, Integer>> sortedMovies = new ArrayList<>(movieCountMap.entrySet());
+            sortedMovies.sort((e1, e2) -> e2.getValue().compareTo(e1.getValue()));
+            List<String> topMovies = new ArrayList<>();
+            for (int i = 0; i < Math.min(20, sortedMovies.size()); i++) {
+                topMovies.add(sortedMovies.get(i).getKey());
+            }
+            if (!topMovies.isEmpty()) {
+                fetchMovieDetailsAndUpdateSlider(topMovies);
+            }
+        });
+    }
+    private void fetchMovieDetailsAndUpdateSlider(List<String> movieTitles) {
+        Query query = db.collection("Movies").whereIn("title", movieTitles);
+        query.get().addOnSuccessListener(queryDocumentSnapshots -> {
+            List<SliderItem> sliderItems = new ArrayList<>();
+            for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
+                if (document.exists()) {
+                    String title = document.getString("title");
+                    String mainPlot = document.getString("mainPlot");
+                    String imageUrl = document.getString("downlaoadURL");
+                    String releaseYear = document.getLong("releaseYear") != null ? Long.toString(document.getLong("releaseYear")) : "";
+                    String aggregateRating = document.getDouble("aggregateRating") != null ? Double.toString(document.getDouble("aggregateRating")) : "";
+                    sliderItems.add(new SliderItem(imageUrl, title, mainPlot, releaseYear, aggregateRating));
+                }
+            }
+            banners(topLikedSlider, sliderItems);
+            topLikedPb.setVisibility(View.GONE);
+        });
+    }
+    private void findCompatibleUsersAndMovies() {
+        String currentUserId = mAuth.getUid();
+        DocumentReference currentUserRef = db.collection("Users").document(currentUserId);
+        currentUserRef.get().addOnSuccessListener(currentUserSnapshot -> {
+            if (currentUserSnapshot.exists()) {
+                List<String> currentUserLiked = (List<String>) currentUserSnapshot.get("liked");
+                if (currentUserLiked == null) {
+                    return;
+                }
+                db.collection("Users").get().addOnSuccessListener(queryDocumentSnapshots -> {
+                    Map<String, Integer> compatibilityMap = new HashMap<>();
+                    for (QueryDocumentSnapshot userDoc : queryDocumentSnapshots) {
+                        if (!userDoc.getId().equals(currentUserId)) {
+                            List<String> userLiked = (List<String>) userDoc.get("liked");
+                            if (userLiked != null) {
+                                long commonCount = userLiked.stream()
+                                        .filter(currentUserLiked::contains)
+                                        .count();
+                                if (commonCount >= 10) {
+                                    compatibilityMap.put(userDoc.getId(), (int) commonCount);
+                                }
+                            }
+                        }
+                    }
 
+                    if (compatibilityMap.isEmpty()) {
+                        return;
+                    }
+
+                    List<Map.Entry<String, Integer>> sortedUsers = new ArrayList<>(compatibilityMap.entrySet());
+                    sortedUsers.sort((e1, e2) -> e2.getValue().compareTo(e1.getValue()));
+
+                    List<String> recommendedMovies = new ArrayList<>();
+                    fetchRecommendedMovies(sortedUsers, currentUserLiked, recommendedMovies, 0);
+
+                });
+            }
+        });
+    }
+    private void fetchRecommendedMovies(List<Map.Entry<String, Integer>> sortedUsers, List<String> currentUserLiked, List<String> recommendedMovies, int index) {
+        if (index >= sortedUsers.size() || recommendedMovies.size() >= 50) {
+            if (!recommendedMovies.isEmpty()) {
+                updateSliderWithMovies(recommendedMovies);
+                matchLinear.setVisibility(View.VISIBLE);
+            }
+            return;
+        }
+        String userId = sortedUsers.get(index).getKey();
+        DocumentReference userRef = db.collection("Users").document(userId);
+        userRef.get().addOnSuccessListener(userSnapshot -> {
+            if (userSnapshot.exists()) {
+                List<String> userLiked = (List<String>) userSnapshot.get("liked");
+                if (userLiked != null) {
+                    for (String movie : userLiked) {
+                        if (!currentUserLiked.contains(movie) && !recommendedMovies.contains(movie)) {
+                            recommendedMovies.add(movie);
+                            if (recommendedMovies.size() >= 50) break;
+                        }
+                    }
+                }
+            }
+            fetchRecommendedMovies(sortedUsers, currentUserLiked, recommendedMovies, index + 1);
+        }).addOnFailureListener(e -> {
+            fetchRecommendedMovies(sortedUsers, currentUserLiked, recommendedMovies, index + 1);
+        });
+    }
+    private void updateSliderWithMovies(List<String> movieTitles) {
+        Query query = db.collection("Movies").whereIn("title", movieTitles)
+                .orderBy("aggregateRating", Query.Direction.DESCENDING);
+        query.get().addOnSuccessListener(queryDocumentSnapshots -> {
+            List<SliderItem> sliderItems = new ArrayList<>();
+            for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
+                if (document.exists()) {
+                    String title = document.getString("title");
+                    String mainPlot = document.getString("mainPlot");
+                    String imageUrl = document.getString("downlaoadURL");
+                    String releaseYear = document.getLong("releaseYear") != null ? Long.toString(document.getLong("releaseYear")) : "";
+                    String aggregateRating = document.getDouble("aggregateRating") != null ? Double.toString(document.getDouble("aggregateRating")) : "";
+                    sliderItems.add(new SliderItem(imageUrl, title, mainPlot, releaseYear, aggregateRating));
+                }
+            }
+            banners(matchesSlider, sliderItems);
+            loadingMatchSlider.setVisibility(View.GONE);
+        });
+    }
+    private void initGenresSlider() {
+        String userId = mAuth.getUid();
+        try {
+            DocumentReference userRef = db.collection("Users").document(userId);
+            userRef.get().addOnSuccessListener(documentSnapshot -> {
+                if (documentSnapshot.exists()) {
+                    List<String> likedTitles = (List<String>) documentSnapshot.get("liked");
+                    Map<String, Object> genreCounts = (Map<String, Object>) documentSnapshot.get("genreCounts");
+                    if (genreCounts != null && !genreCounts.isEmpty()) {
+                        List<Map.Entry<String, Object>> genreList = new ArrayList<>(genreCounts.entrySet());
+                        genreList.sort((e1, e2) -> Long.compare((Long) e2.getValue(), (Long) e1.getValue()));
+
+                        List<String> topGenres = new ArrayList<>();
+                        for (int i = 0; i < genreList.size(); i++) {
+                            if ((Long) genreList.get(i).getValue() >= 5) {
+                                topGenres.add(genreList.get(i).getKey());
+                            }
+                            if (topGenres.size() >= 3) {
+                                break;
+                            }
+                        }
+                        if(!topGenres.isEmpty()){
+                            for(int i = 0; i < topGenres.size(); i++){
+                                LinearLayout linearLayout = listOfGenresLinear.get(i);
+                                ProgressBar progressBar = listOfGenresPb.get(i);
+                                ViewPager2 slider = listOfGenresSlider.get(i);
+                                TextView textView = listOfGenresTx.get(i);
+                                textView.setText("From your favorite genres: "+ topGenres.get(i));
+                                linearLayout.setVisibility(View.VISIBLE);
+                                Query query = db.collection("Movies")
+                                        .whereArrayContains("genres", topGenres.get(i))
+                                        .whereGreaterThan("aggregateRating", 7.0)
+                                        .orderBy("aggregateRating", Query.Direction.DESCENDING);
+                                query.get().addOnSuccessListener(queryDocumentSnapshots -> {
+                                    List<SliderItem> list = new ArrayList<>();
+                                    for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
+                                        if (document.exists()) {
+                                            String title = document.getString("title") != null ? document.getString("title") : "";
+                                            if (!likedTitles.contains(title)) {
+                                                String mainPlot = document.getString("mainPlot") != null ? document.getString("mainPlot") : "";
+                                                String imageUrl = document.getString("downlaoadURL") != null ? document.getString("downlaoadURL") : "";
+                                                String releaseYear = document.getLong("releaseYear") != null ? Long.toString(document.getLong("releaseYear")) : "";
+                                                String aggregateRating = document.getDouble("aggregateRating") != null ? Double.toString(document.getDouble("aggregateRating")) : "";
+                                                list.add(new SliderItem(imageUrl, title, mainPlot, releaseYear, aggregateRating));
+                                            }
+                                        }
+                                    }
+                                    banners(slider, list);
+                                    progressBar.setVisibility(View.GONE);
+                                });
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        catch (Exception e) {
+            Log.d("EXCEPTIE", e.toString());
+        }
+    }
     private void banners(ViewPager2 viewPager2, List<SliderItem> sliderItems) {
-        viewPager2.setAdapter(new SliderAdapter(sliderItems,viewPager2));
+        SliderAdapter adapter = new SliderAdapter(sliderItems, viewPager2);
+        viewPager2.setAdapter(adapter);
         viewPager2.setClipToPadding(false);
         viewPager2.setOffscreenPageLimit(4);
         viewPager2.setClipChildren(false);
@@ -71,27 +313,24 @@ public class MainActivity extends AppCompatActivity {
         compositePageTransformer.addTransformer(new ViewPager2.PageTransformer() {
             @Override
             public void transformPage(@NonNull View page, float position) {
-                float r = 1-Math.abs(position);
-                page.setScaleY(0.85f+r*0.15f);
+                float r = 1 - Math.abs(position);
+                page.setScaleY(0.85f + r * 0.15f);
             }
         });
         viewPager2.setPageTransformer(compositePageTransformer);
         viewPager2.setCurrentItem(1);
-        ((SliderAdapter) viewPager2.getAdapter()).setCurrentPosition(1);
+        adapter.setCurrentPosition(1);
         viewPager2.registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {
             @Override
             public void onPageSelected(int position) {
                 super.onPageSelected(position);
-                ((SliderAdapter) viewPager2.getAdapter()).setCurrentPosition(position);
+                adapter.setCurrentPosition(position);
                 /*sliderHandler.removeCallbacks(sliderRunnable);*/
             }
         });
     }
-
     private void initView() {
-        topGenresPb = findViewById(R.id.topGenres_progress);
         db = FirebaseFirestore.getInstance();
-        topGenresSlider = findViewById(R.id.topGenres_slider);
         matchesSlider = findViewById(R.id.match_slider);
         loadingMatchSlider = findViewById(R.id.loading_match_slider);
         welcomeName = findViewById(R.id.textview_name);
@@ -100,8 +339,16 @@ public class MainActivity extends AppCompatActivity {
         feedBtn = findViewById(R.id.feed_button);
         watchListBtn = findViewById(R.id.watch_list);
         accLinear = findViewById(R.id.account_linear);
-        topGenresText = findViewById(R.id.topGenresTx);
-
+        homeButton = findViewById(R.id.home_button);
+        topLikedSlider = findViewById(R.id.top_liked_slider);
+        topLikedPb = findViewById(R.id.top_liked_pb);
+        topPostSlider = findViewById(R.id.postedMovies_slider);
+        topPostPb = findViewById(R.id.postedMovies_pb);
+        listOfGenresSlider = new ArrayList<>(Arrays.asList(findViewById(R.id.genres_slider_1), findViewById(R.id.genres_slider_2), findViewById(R.id.genres_slider_3)));
+        listOfGenresTx = new ArrayList<>(Arrays.asList(findViewById(R.id.genres_tx_1),findViewById(R.id.genres_tx_2),findViewById(R.id.genres_tx_3)));
+        listOfGenresPb = new ArrayList<>(Arrays.asList(findViewById(R.id.genres_pb_1),findViewById(R.id.genres_pb_2),findViewById(R.id.genres_pb_3)));
+        listOfGenresLinear = new ArrayList<>(Arrays.asList(findViewById(R.id.genres_linear_1),findViewById(R.id.genres_linear_2),findViewById(R.id.genres_linear_3)));
+        matchLinear = findViewById(R.id.match_linear);
         feedBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -114,24 +361,25 @@ public class MainActivity extends AppCompatActivity {
                 startActivity(new Intent(MainActivity.this, WatchlistActivity.class));
             }
         });
-
+        homeButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                startActivity(new Intent(MainActivity.this, MainActivity.class));
+            }
+        });
         accLinear.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 startActivity(new Intent(MainActivity.this, AccountActivity.class));
             }
         });
-
         filteredSearchButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 startActivity(new Intent(MainActivity.this, BrowseActivity.class));
             }
         });
-
-
         mAuth=FirebaseAuth.getInstance();
-
         FirebaseUser user = mAuth.getCurrentUser();
         String uid = user.getUid();
         db.collection("Users")
@@ -151,8 +399,6 @@ public class MainActivity extends AppCompatActivity {
                                             .into(accountButton);
                                 }
                                 welcomeName.setText(username);
-                            } else {
-                                Log.w(TAG, "Error getting documents.");
                             }
                         }
                     }
@@ -163,166 +409,10 @@ public class MainActivity extends AppCompatActivity {
                         Log.e("eroare 2", "Error getting documents", e);
                     }
                 });
-
-
-        /*SliderItem movie = new SliderItem("https://m.media-amazon.com/images/M/MV5BZDM3YTg4MGUtZmUxNi00YmEyLTllNTctNjYyNjZlZGViNmFhXkEyXkFqcGdeQXVyMTUzMTg2ODkz._V1_.jpg"
-                , "Argylle","A reclusive author who writes espionage novels about a secret agent and a global spy syndicate realizes the plot of the new book she's writing starts to mirror real-world events, in real time."
-                ,"90"
-                ,"5.7");
-        sliderItems.add(movie);
-
-        SliderItem movie2 = new SliderItem("https://m.media-amazon.com/images/M/MV5BODNlMDM2N2UtOTE5ZS00ODViLTljMDEtOTEwNjU5YTNkNGNlXkEyXkFqcGdeQXVyMTIyNzY0NTMx._V1_.jpg"
-                , "Hanu Man"
-                ,"An imaginary place called Anjanadri where the protagonist gets the powers of Hanuman and fights for Anjanadri."
-                ,"80"
-                ,"8");
-        sliderItems.add(movie2);
-
-        SliderItem movie3 = new SliderItem("https://m.media-amazon.com/images/M/MV5BZjU1ODRhYmYtNzYzYi00Y2UyLWJhYWQtMzQ3ODlhMzUwMDljXkEyXkFqcGdeQXVyNTA2MzMwMjA@._V1_.jpg"
-                , "Malaikottai Vaaliban"
-                ,"Journey of Malaikottai Vaaliban, an undisputed warrior, transcends time and geographies, triumphing over every opponent he encounters."
-                ,"90"
-                ,"6.3");
-        sliderItems.add(movie3);*/
-
-        //querryByReleaseYear(db,2023);
         initGenresSlider();
-
+        findCompatibleUsersAndMovies();
+        getMostLikedMovies();
+        populateSliderWithMovies();
 
     }
-
-    private void initGenresSlider() {
-        String userId = mAuth.getUid();
-        DocumentReference userRef = db.collection("Users").document(userId);
-
-        userRef.get().addOnSuccessListener(documentSnapshot -> {
-            if (documentSnapshot.exists()) {
-                Map<String, Object> genreCounts = (Map<String, Object>) documentSnapshot.get("genreCounts");
-                if (genreCounts != null && !genreCounts.isEmpty()) {
-                    List<Map.Entry<String, Object>> genreList = new ArrayList<>(genreCounts.entrySet());
-                    genreList.sort((e1, e2) -> Long.compare((Long) e2.getValue(), (Long) e1.getValue()));
-
-                    List<String> topGenres = new ArrayList<>();
-                    for (int i = 0; i < Math.min(3, genreList.size()); i++) {
-                        topGenres.add(genreList.get(i).getKey());
-                    }
-
-                    Query query = db.collection("Movies")
-                            .whereArrayContainsAny("genres", topGenres)
-                            .whereGreaterThan("aggregateRating", 7.0).orderBy("aggregateRating", Query.Direction.DESCENDING);
-
-
-                    query.get().addOnSuccessListener(queryDocumentSnapshots -> {
-                        List<SliderItem> list = new ArrayList<>();
-                        for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
-                            if (document.exists()) {
-                                String title = document.getString("title") != null ? document.getString("title") : "";
-                                String mainPlot = document.getString("mainPlot") != null ? document.getString("mainPlot") : "";
-                                String imageUrl = document.getString("downlaoadURL") != null ? document.getString("downlaoadURL") : "";
-                                String releaseYear = document.getLong("releaseYear") != null ? Long.toString(document.getLong("releaseYear")) : "";
-                                String aggregateRating = document.getDouble("aggregateRating") != null ? Double.toString(document.getDouble("aggregateRating")) : "";
-                                list.add(new SliderItem(imageUrl, title, mainPlot, releaseYear, aggregateRating));
-                            }
-                        }
-                        banners(topGenresSlider, list);
-                        topGenresPb.setVisibility(View.GONE);
-                    }).addOnFailureListener(e -> {
-                        Log.e(TAG, "Error getting movies", e);
-                    });
-                } else {
-                    topGenresSlider.setVisibility(View.GONE);
-                    topGenresText.setVisibility(View.GONE);
-                }
-            } else {
-                Log.w(TAG, "User document does not exist");
-            }
-        }).addOnFailureListener(e -> {
-            Log.e(TAG, "Error getting user document", e);
-        });
-    }
-
-
-
-    private List<String> getTopGenres(String userId) {
-        List<String> topGenres = new ArrayList<>();
-
-        DocumentReference userRef = db.collection("Users").document(userId);
-
-        try {
-            DocumentSnapshot document = userRef.get().getResult();
-
-            if (document.exists()) {
-                Map<String, Long> genreCounts = new HashMap<>();
-                if (document.contains("genreCounts")) {
-                    genreCounts = (Map<String, Long>) document.get("genreCounts");
-                }
-
-                List<Map.Entry<String, Long>> genreList = new ArrayList<>(genreCounts.entrySet());
-
-                Collections.sort(genreList, new Comparator<Map.Entry<String, Long>>() {
-                    @Override
-                    public int compare(Map.Entry<String, Long> o1, Map.Entry<String, Long> o2) {
-                        return o2.getValue().compareTo(o1.getValue()); // Descending order
-                    }
-                });
-
-                // Extract top genres
-                int count = 0;
-                for (Map.Entry<String, Long> entry : genreList) {
-                    topGenres.add(entry.getKey());
-                    count++;
-                    if (count >= 3) {
-                        break;
-                    }
-                }
-            } else {
-                Log.d(TAG, "No such document");
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "Error getting document", e);
-        }
-
-        return topGenres;
-    }
-
-    private void querryByReleaseYear(FirebaseFirestore db, long releaseYear) {
-        db.collection("Movies")
-                .whereEqualTo("releaseYear", releaseYear)
-                .get()
-                .addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
-                    @Override
-                    public void onSuccess(QuerySnapshot queryDocumentSnapshots) {
-                        List<SliderItem> list = new ArrayList<>();
-                        for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
-                            if (document.exists()) {
-                                String title = document.getString("title") != null ? document.getString("title") : "";
-                                Log.d("titlu",title);
-                                String mainPlot = document.getString("mainPlot") != null ? document.getString("mainPlot") : "";
-                                Log.d("mainPlot",mainPlot);
-                                String imageUrl = document.getString("downlaoadURL") != null ? document.getString("downlaoadURL") : "";
-                                Log.d("imageUrl",imageUrl);
-                                String releaseYear = document.getLong("releaseYear") != null ? Long.toString(document.getLong("releaseYear")) : "";
-                                Log.d("releaseYear",releaseYear);
-                                String aggregateRating = document.getDouble("aggregateRating") != null ? Double.toString(document.getDouble("aggregateRating")) : "";
-                                Log.d("aggregateRating",aggregateRating);
-                                list.add(new SliderItem(imageUrl,title,mainPlot,releaseYear,aggregateRating));
-                                if(list.size()==queryDocumentSnapshots.size()){
-                                    Log.d("size",list.size()+"");
-                                    banners(matchesSlider,list);
-                                    loadingMatchSlider.setVisibility(View.GONE);
-                                }
-                            } else {
-                                Log.w(TAG, "Error getting documents.");
-                            }
-                        }
-                    }
-                })
-                .addOnFailureListener(new OnFailureListener() {
-                    @Override
-                    public void onFailure(@NonNull Exception e) {
-                        Log.e("eroare 2", "Error getting documents", e);
-                    }
-                });
-    }
-
 }

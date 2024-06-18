@@ -43,6 +43,7 @@ import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.google.firebase.firestore.QuerySnapshot;
 import com.google.firebase.firestore.SetOptions;
 
+import java.lang.reflect.Method;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -279,9 +280,18 @@ public class DetailActivity extends AppCompatActivity {
         initPost();
 
     }
+    private void openSpinner(Spinner spinner) {
+        try {
+            Method method = Spinner.class.getDeclaredMethod("onDetachedFromWindow");
+            method.setAccessible(true);
+            method.invoke(spinner);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 
     private void initSpinner() {
-        String[] options = {"","Already watched this title? Like!", "Plan to watch this title? Watchlist!"};
+        String[] options = {"...","Already watched this title? Like!", "Plan to watch this title? Watchlist!"};
         spinner = findViewById(R.id.sort_spinner);
         CustomSpinnerAdapter adapter = new CustomSpinnerAdapter(this, R.layout.spinner_item_layout, options);
         spinner.setAdapter(adapter);
