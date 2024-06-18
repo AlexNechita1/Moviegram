@@ -12,6 +12,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.animation.AccelerateDecelerateInterpolator;
 import android.widget.AdapterView;
+import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
@@ -46,6 +47,7 @@ public class WatchlistActivity extends AppCompatActivity {
     private ConstraintLayout watchlistConstr,likedConstr;
     private FirebaseFirestore db;
     private String currentUserId;
+    private ImageView bkButton;
     private Spinner spinner;
 
     @Override
@@ -56,6 +58,13 @@ public class WatchlistActivity extends AppCompatActivity {
     }
 
     private void initView() {
+        bkButton = findViewById(R.id.backBtn);
+        bkButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                onBackPressed();
+            }
+        });
         radioGroup = findViewById(R.id.radioGroup);
         watchlistBtn = findViewById(R.id.radio_watchlist);
         likedBtn = findViewById(R.id.radio_liked);

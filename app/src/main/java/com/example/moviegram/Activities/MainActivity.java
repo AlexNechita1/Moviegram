@@ -8,6 +8,7 @@ import android.os.Handler;
 import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
@@ -18,6 +19,7 @@ import androidx.viewpager2.widget.CompositePageTransformer;
 import androidx.viewpager2.widget.MarginPageTransformer;
 import androidx.viewpager2.widget.ViewPager2;
 
+import com.bumptech.glide.Glide;
 import com.example.moviegram.Adapters.SliderAdapter;
 import com.example.moviegram.Objects.SliderItem;
 import com.example.moviegram.R;
@@ -25,19 +27,28 @@ import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.DocumentReference;
+import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.google.firebase.firestore.QuerySnapshot;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class MainActivity extends AppCompatActivity {
-    private ViewPager2 preferencesSlider,matchesSlider;
+    private ViewPager2 topGenresSlider,matchesSlider;
     private Handler sliderHandler = new Handler();
-    private ProgressBar loadingMatchSlider;
+    private ProgressBar loadingMatchSlider,topGenresPb;
+    private FirebaseFirestore db;
+    private LinearLayout accLinear;
     private ImageView accountButton,filteredSearchButton,watchListBtn,feedBtn;
-    private TextView welcomeName;
+    private TextView welcomeName,topGenresText;
     private FirebaseAuth mAuth;
 
     @Override
@@ -78,8 +89,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void initView() {
-        FirebaseFirestore db = FirebaseFirestore.getInstance();
-        preferencesSlider = findViewById(R.id.preferences_slider);
+        topGenresPb = findViewById(R.id.topGenres_progress);
+        db = FirebaseFirestore.getInstance();
+        topGenresSlider = findViewById(R.id.topGenres_slider);
         matchesSlider = findViewById(R.id.match_slider);
         loadingMatchSlider = findViewById(R.id.loading_match_slider);
         welcomeName = findViewById(R.id.textview_name);
@@ -87,6 +99,8 @@ public class MainActivity extends AppCompatActivity {
         filteredSearchButton = findViewById(R.id.img_search);
         feedBtn = findViewById(R.id.feed_button);
         watchListBtn = findViewById(R.id.watch_list);
+        accLinear = findViewById(R.id.account_linear);
+        topGenresText = findViewById(R.id.topGenresTx);
 
         feedBtn.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -101,7 +115,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        accountButton.setOnClickListener(new View.OnClickListener() {
+        accLinear.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 startActivity(new Intent(MainActivity.this, AccountActivity.class));
@@ -129,7 +143,13 @@ public class MainActivity extends AppCompatActivity {
                         for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
                             if (document.exists()) {
                                 String username = document.getString("username") != null ? document.getString("username") : "";
-                                Log.d("titlu",username);
+                                String url = document.getString("profile_picture") != null ? document.getString("profile_picture") : "";
+                                if (url != ""){
+                                    Glide.with(accountButton.getContext())
+                                            .load(url)
+                                            .centerCrop()
+                                            .into(accountButton);
+                                }
                                 welcomeName.setText(username);
                             } else {
                                 Log.w(TAG, "Error getting documents.");
@@ -166,9 +186,105 @@ public class MainActivity extends AppCompatActivity {
         sliderItems.add(movie3);*/
 
         //querryByReleaseYear(db,2023);
+        initGenresSlider();
 
 
     }
+
+    private void initGenresSlider() {
+        String userId = mAuth.getUid();
+        DocumentReference userRef = db.collection("Users").document(userId);
+
+        userRef.get().addOnSuccessListener(documentSnapshot -> {
+            if (documentSnapshot.exists()) {
+                Map<String, Object> genreCounts = (Map<String, Object>) documentSnapshot.get("genreCounts");
+                if (genreCounts != null && !genreCounts.isEmpty()) {
+                    List<Map.Entry<String, Object>> genreList = new ArrayList<>(genreCounts.entrySet());
+                    genreList.sort((e1, e2) -> Long.compare((Long) e2.getValue(), (Long) e1.getValue()));
+
+                    List<String> topGenres = new ArrayList<>();
+                    for (int i = 0; i < Math.min(3, genreList.size()); i++) {
+                        topGenres.add(genreList.get(i).getKey());
+                    }
+
+                    Query query = db.collection("Movies")
+                            .whereArrayContainsAny("genres", topGenres)
+                            .whereGreaterThan("aggregateRating", 7.0).orderBy("aggregateRating", Query.Direction.DESCENDING);
+
+
+                    query.get().addOnSuccessListener(queryDocumentSnapshots -> {
+                        List<SliderItem> list = new ArrayList<>();
+                        for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
+                            if (document.exists()) {
+                                String title = document.getString("title") != null ? document.getString("title") : "";
+                                String mainPlot = document.getString("mainPlot") != null ? document.getString("mainPlot") : "";
+                                String imageUrl = document.getString("downlaoadURL") != null ? document.getString("downlaoadURL") : "";
+                                String releaseYear = document.getLong("releaseYear") != null ? Long.toString(document.getLong("releaseYear")) : "";
+                                String aggregateRating = document.getDouble("aggregateRating") != null ? Double.toString(document.getDouble("aggregateRating")) : "";
+                                list.add(new SliderItem(imageUrl, title, mainPlot, releaseYear, aggregateRating));
+                            }
+                        }
+                        banners(topGenresSlider, list);
+                        topGenresPb.setVisibility(View.GONE);
+                    }).addOnFailureListener(e -> {
+                        Log.e(TAG, "Error getting movies", e);
+                    });
+                } else {
+                    topGenresSlider.setVisibility(View.GONE);
+                    topGenresText.setVisibility(View.GONE);
+                }
+            } else {
+                Log.w(TAG, "User document does not exist");
+            }
+        }).addOnFailureListener(e -> {
+            Log.e(TAG, "Error getting user document", e);
+        });
+    }
+
+
+
+    private List<String> getTopGenres(String userId) {
+        List<String> topGenres = new ArrayList<>();
+
+        DocumentReference userRef = db.collection("Users").document(userId);
+
+        try {
+            DocumentSnapshot document = userRef.get().getResult();
+
+            if (document.exists()) {
+                Map<String, Long> genreCounts = new HashMap<>();
+                if (document.contains("genreCounts")) {
+                    genreCounts = (Map<String, Long>) document.get("genreCounts");
+                }
+
+                List<Map.Entry<String, Long>> genreList = new ArrayList<>(genreCounts.entrySet());
+
+                Collections.sort(genreList, new Comparator<Map.Entry<String, Long>>() {
+                    @Override
+                    public int compare(Map.Entry<String, Long> o1, Map.Entry<String, Long> o2) {
+                        return o2.getValue().compareTo(o1.getValue()); // Descending order
+                    }
+                });
+
+                // Extract top genres
+                int count = 0;
+                for (Map.Entry<String, Long> entry : genreList) {
+                    topGenres.add(entry.getKey());
+                    count++;
+                    if (count >= 3) {
+                        break;
+                    }
+                }
+            } else {
+                Log.d(TAG, "No such document");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error getting document", e);
+        }
+
+        return topGenres;
+    }
+
     private void querryByReleaseYear(FirebaseFirestore db, long releaseYear) {
         db.collection("Movies")
                 .whereEqualTo("releaseYear", releaseYear)

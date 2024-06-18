@@ -83,8 +83,18 @@
                         android:text="0"
                         android:textColor="@color/white" />
 
-
                 </LinearLayout>
+
+                <ImageView
+                    android:id="@+id/add_title_btn"
+                    android:layout_width="35dp"
+                    android:layout_height="35dp"
+                    android:background="@drawable/oval_btn_background"
+                    android:padding="8dp"
+                    android:layout_marginEnd="8dp"
+                    android:src="@drawable/plus"
+                    app:layout_constraintBottom_toBottomOf="@+id/linearLayout"
+                    app:layout_constraintEnd_toEndOf="@+id/image_backgorund" />
                 <androidx.constraintlayout.widget.ConstraintLayout
                     android:id="@+id/constraintLayout"
                     android:layout_width="match_parent"
@@ -109,10 +119,24 @@
                         app:layout_constraintTop_toTopOf="parent"
                         />
 
+                    <TextView
+                        android:id="@+id/check_tx"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:visibility="gone"
+                        android:textSize="16sp"
+                        android:textColor="@color/white"
+                        android:textStyle="bold"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintTop_toTopOf="parent"
+                        tools:text="In watchlist" />
+
 
 
                 </androidx.constraintlayout.widget.ConstraintLayout>
 
+                <!--
                 <ImageView
                     android:id="@+id/add_title_btn"
                     android:layout_width="35dp"
@@ -134,9 +158,17 @@
                     android:layout_marginBottom="8dp"
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintEnd_toEndOf="@+id/image_backgorund"
-                    android:src="@drawable/white_heart" />
+                    android:src="@drawable/white_heart" />-->
 
             </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <Spinner
+                android:id="@+id/sort_spinner"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:visibility="gone"
+                android:background="@color/dark_blue"
+                android:layout_marginStart="8dp"/>
 
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/recycler_category"

@@ -130,16 +130,6 @@
                         app:layout_constraintTop_toTopOf="parent"
                         />
 
-                    <ImageView
-                        android:id="@+id/settingBtn"
-                        android:layout_width="35dp"
-                        android:layout_height="35dp"
-                        android:background="@drawable/oval_btn_background"
-                        android:padding="8dp"
-                        android:src="@drawable/settings"
-                        app:layout_constraintBottom_toBottomOf="parent"
-                        app:layout_constraintEnd_toEndOf="parent"
-                        app:layout_constraintTop_toTopOf="parent" />
                 </androidx.constraintlayout.widget.ConstraintLayout>
 
             </androidx.constraintlayout.widget.ConstraintLayout>
@@ -208,23 +198,12 @@
                 android:layout_marginTop="8dp"
                 android:layout_marginStart="8dp"
                 android:layout_marginBottom="8dp"
-                android:text="My posts" />
+                android:text="Posts" />
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/posts_recycler"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"/>
 
-            <androidx.appcompat.widget.AppCompatButton
-                android:id="@+id/button_signout"
-                style="@android:style/Widget.Button"
-                android:layout_gravity="center"
-                android:layout_marginTop="16dp"
-                android:layout_width="70dp"
-                android:layout_height="35dp"
-                android:background="@drawable/orange_button_background"
-                android:text="Sign out"
-                android:textColor="@color/white"
-                android:textSize="16sp" />
 
         </LinearLayout>
     </ScrollView>

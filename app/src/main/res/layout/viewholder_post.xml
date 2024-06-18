@@ -38,13 +38,13 @@
             tools:text="korororo" />
 
         <TextView
-            android:id="@+id/tx_title"
+            android:id="@+id/tx_timestamp"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="10dp"
             android:textColor="@color/yellow"
-            android:textSize="16sp"
-            tools:text="Horror Master" />
+            android:textSize="14sp"
+            tools:text="22.01.2002 14:52" />
 
     </LinearLayout>
 
@@ -73,5 +73,26 @@
         android:layout_height="140dp"
         android:src="@drawable/gradient_background"
         app:layout_constraintBottom_toBottomOf="@+id/movie_poster" />
+
+    <ImageView
+        android:id="@+id/like_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginBottom="16dp"
+        android:src="@drawable/white_heart"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <TextView
+        android:id="@+id/likes_textview"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="@color/white"
+        android:layout_marginStart="6dp"
+        android:textSize="20sp"
+        app:layout_constraintStart_toEndOf="@+id/like_button"
+        app:layout_constraintTop_toTopOf="@+id/like_button"
+        tools:text="1200" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

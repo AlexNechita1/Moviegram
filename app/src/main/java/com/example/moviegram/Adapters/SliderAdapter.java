@@ -114,7 +114,7 @@ public class SliderAdapter extends RecyclerView.Adapter<SliderAdapter.SliderView
             RequestOptions requestOptions = new RequestOptions();
             requestOptions = requestOptions.transforms(new CenterCrop(), new RoundedCorners(60));
 
-            Glide.with(context).load(imageUrl).apply(requestOptions).into(imageView);
+            Glide.with(context).load(imageUrl).placeholder(R.drawable.big_logo).error(R.drawable.big_logo).apply(requestOptions).into(imageView);
         }
     }
     private Runnable runnable = new Runnable() {

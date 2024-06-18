@@ -13,6 +13,12 @@
         android:theme="@style/Theme.Moviegram"
         tools:targetApi="31">
         <activity
+            android:name=".Activities.ProfileActivity"
+            android:exported="false" />
+        <activity
+            android:name=".Activities.FirstSelectionActivity"
+            android:exported="false" />
+        <activity
             android:name=".Activities.FeedActivity"
             android:exported="false" />
         <activity

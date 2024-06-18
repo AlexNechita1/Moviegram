@@ -1,7 +1,9 @@
 package com.example.moviegram.Activities;
 
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
+import android.provider.MediaStore;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.LayoutInflater;
@@ -37,15 +39,20 @@ import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.google.firebase.firestore.QuerySnapshot;
+import com.google.firebase.firestore.SetOptions;
+import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
+import com.google.firebase.storage.UploadTask;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public class SettingsActivity extends AppCompatActivity {
 
     private FirebaseFirestore db;
+    private FirebaseAuth mAuth;
     private List<CastMember> allCastMembers;
     private List<MovieSearchResult> allMovies;
     private CastMemberAdapter castAdapter;
@@ -55,7 +62,7 @@ public class SettingsActivity extends AppCompatActivity {
     private List<String> selectedCastName,selectedMovieTitles;
     private RecyclerView selectedActorsRecycler, adableCastRecycler, adableMoviesRecycler, selectedMoviesRecycler;
     private EditText editCast, editMovie;
-    private ImageView profileImg,backgroundImg;
+    private ImageView profileImg,backgroundImg,bkButton;
     private String currentUserId;
     private Button editProfile, editBk, saveBtn;
     private static final int MAX_SELECTED_ACTORS = 3;
@@ -71,7 +78,71 @@ public class SettingsActivity extends AppCompatActivity {
         initSearchFunctionality();
     }
 
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        FirebaseStorage storage = FirebaseStorage.getInstance();
+        StorageReference storageRef = storage.getReference();
+        FirebaseAuth mAuth = FirebaseAuth.getInstance();
+        FirebaseFirestore db = FirebaseFirestore.getInstance();
+
+
+
+        if (resultCode == RESULT_OK && data != null) {
+            Uri selectedImage = data.getData();
+
+            StorageReference imagesRef = storageRef.child("profile_pic/" + mAuth.getUid());
+
+            UploadTask uploadTask = imagesRef.putFile(selectedImage);
+
+            uploadTask.addOnFailureListener(new OnFailureListener() {
+                @Override
+                public void onFailure(@NonNull Exception exception) {
+                    Toast.makeText(SettingsActivity.this, "Upload failed", Toast.LENGTH_SHORT).show();
+                }
+            }).addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
+                @Override
+                public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+                    imagesRef.getDownloadUrl().addOnSuccessListener(new OnSuccessListener<Uri>() {
+                        @Override
+                        public void onSuccess(Uri uri) {
+                            String downloadUrl = uri.toString();
+                            String uid = mAuth.getUid();
+
+
+                            Map<String, Object> userUpdates = new HashMap<>();
+                            userUpdates.put("profile_picture", downloadUrl);
+
+                            db.collection("Users").document(uid)
+                                    .set(userUpdates, SetOptions.merge())
+                                    .addOnSuccessListener(new OnSuccessListener<Void>() {
+                                        @Override
+                                        public void onSuccess(Void aVoid) {
+                                            Toast.makeText(SettingsActivity.this, "Profile picture updated", Toast.LENGTH_SHORT).show();
+                                        }
+                                    })
+                                    .addOnFailureListener(new OnFailureListener() {
+                                        @Override
+                                        public void onFailure(@NonNull Exception e) {
+                                            Toast.makeText(SettingsActivity.this, "Failed to update profile picture", Toast.LENGTH_SHORT).show();
+                                        }
+                                    });
+                        }
+                    });
+                }
+            });
+        }
+    }
+
     private void initView() {
+        bkButton = findViewById(R.id.backBtn);
+        bkButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent = new Intent(SettingsActivity.this, AccountActivity.class);
+                startActivity(intent);
+            }
+        });
         saveBtn = findViewById(R.id.save_button);
         editProfile = findViewById(R.id.edit_profile_button);
         profileImg = findViewById(R.id.profile_image);
@@ -79,6 +150,7 @@ public class SettingsActivity extends AppCompatActivity {
         editCast = findViewById(R.id.edit_cast);
         editMovie = findViewById(R.id.edit_movies);
         db = FirebaseFirestore.getInstance();
+        mAuth=FirebaseAuth.getInstance();
         allCastMembers = new ArrayList<>();
         allMovies = new ArrayList<>();
         selectedCastName = new ArrayList<>();
@@ -88,6 +160,7 @@ public class SettingsActivity extends AppCompatActivity {
         adableMoviesRecycler = findViewById(R.id.addable_movie_recycler);
         selectedActorsRecycler = findViewById(R.id.selected_cast_recycler);
         selectedMoviesRecycler = findViewById(R.id.selected_movies_recycler);
+
 
         saveBtn.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -102,6 +175,14 @@ public class SettingsActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 showMovieSearchPopup();
+            }
+        });
+
+        editProfile.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+                startActivityForResult(intent,3);
             }
         });
 
@@ -133,7 +214,7 @@ public class SettingsActivity extends AppCompatActivity {
         });
         adableMoviesRecycler.setAdapter(movieAdapter);
         adableMoviesRecycler.setLayoutManager(new LinearLayoutManager(this));
-        adableMoviesRecycler.setVisibility(View.GONE);  // Initially hidden
+        adableMoviesRecycler.setVisibility(View.GONE);
         currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid();
         initCastRecycler();
         initMovieRecycler(currentUserId);
@@ -199,12 +280,11 @@ public class SettingsActivity extends AppCompatActivity {
         AlertDialog dialog = builder.create();
         dialog.show();
 
-        // Set the adapter with the dialog reference for dismissal
+
         movieAdapter = new SearchMovieAdapter(allMovies, movie -> {
             updateProfileBackground(movie.getUrl());
-            dialog.dismiss(); // Dismiss the dialog when a movie is selected
+            dialog.dismiss();
         });
-
         recyclerMovieSearch.setAdapter(movieAdapter);
 
         editMovieSearch.addTextChangedListener(new TextWatcher() {

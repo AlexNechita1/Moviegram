@@ -1,28 +1,51 @@
 package com.example.moviegram.Activities;
 
+import static android.content.ContentValues.TAG;
+
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
+import android.provider.MediaStore;
+import android.text.Editable;
 import android.text.SpannableString;
+import android.text.TextWatcher;
 import android.text.style.ForegroundColorSpan;
 import android.text.style.UnderlineSpan;
 import android.transition.Slide;
 import android.transition.Transition;
 import android.transition.TransitionManager;
+import android.util.Log;
 import android.view.Gravity;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowManager;
 import android.view.animation.AccelerateDecelerateInterpolator;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.constraintlayout.widget.ConstraintLayout;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
+import com.bumptech.glide.Glide;
+import com.example.moviegram.Adapters.CategoryAdapter;
+import com.example.moviegram.Adapters.FilterCategoryAdapter;
+import com.example.moviegram.Adapters.FirstMoviesAdapter;
+import com.example.moviegram.Adapters.MovieItemAdapter;
+import com.example.moviegram.Adapters.SearchMovieAdapter;
+import com.example.moviegram.Objects.CategoryItem;
+import com.example.moviegram.Objects.Movie;
+import com.example.moviegram.Objects.MovieSearchResult;
 import com.example.moviegram.R;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.OnFailureListener;
@@ -31,10 +54,24 @@ import com.google.android.gms.tasks.Task;
 import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.DocumentReference;
+import com.google.firebase.firestore.DocumentSnapshot;
+import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.Query;
+import com.google.firebase.firestore.QueryDocumentSnapshot;
+import com.google.firebase.firestore.QuerySnapshot;
+import com.google.firebase.firestore.SetOptions;
+import com.google.firebase.storage.FirebaseStorage;
+import com.google.firebase.storage.StorageReference;
+import com.google.firebase.storage.UploadTask;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class LoginActivity extends AppCompatActivity {
     private RadioGroup radioGroup;
@@ -43,6 +80,7 @@ public class LoginActivity extends AppCompatActivity {
     private Button loginBtn,registerBtn;
     private ProgressBar progressBar,progressBar2;
     private FirebaseAuth mAuth;
+    private FirebaseFirestore db;
     private ConstraintLayout loginConstraint,signupConstraint;
     private EditText mailEdt, passEdt, signupUsername,signupEmail,signupPass,signupRePass;
 
@@ -72,6 +110,7 @@ public class LoginActivity extends AppCompatActivity {
         progressBar2 = findViewById(R.id.progressBar2);
         loginConstraint = findViewById(R.id.login_form);
         signupConstraint = findViewById(R.id.signup_form);
+        db = FirebaseFirestore.getInstance();
         mAuth=FirebaseAuth.getInstance();
         registerBtn.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -97,7 +136,7 @@ public class LoginActivity extends AppCompatActivity {
                                             Map<String, Object> userData = new HashMap<>();
                                             userData.put("uid", uid);
                                             userData.put("username", username);
-
+                                            userData.put("followers",0);
                                             FirebaseFirestore db = FirebaseFirestore.getInstance();
                                             db.collection("Users")
                                                     .document(uid)
@@ -105,14 +144,14 @@ public class LoginActivity extends AppCompatActivity {
                                                     .addOnSuccessListener(new OnSuccessListener<Void>() {
                                                         @Override
                                                         public void onSuccess(Void aVoid) {
-                                                            Toast.makeText(LoginActivity.this, "User data added to Firestore", Toast.LENGTH_SHORT).show();
-                                                            startActivity(new Intent(LoginActivity.this, LoginActivity.class));
+                                                            Toast.makeText(LoginActivity.this, "Account created successfully.", Toast.LENGTH_SHORT).show();
+                                                            startActivity(new Intent(LoginActivity.this, FirstSelectionActivity.class));
                                                         }
                                                     })
                                                     .addOnFailureListener(new OnFailureListener() {
                                                         @Override
                                                         public void onFailure(@NonNull Exception e) {
-                                                            Toast.makeText(LoginActivity.this, "Failed to add user data to Firestore", Toast.LENGTH_SHORT).show();
+                                                            Toast.makeText(LoginActivity.this, "Failed to create account", Toast.LENGTH_SHORT).show();
                                                         }
                                                     });
 
@@ -195,7 +234,7 @@ public class LoginActivity extends AppCompatActivity {
 
     }
     private void transitionLoginForm(){
-        ViewGroup parent = findViewById(R.id.main);
+        ViewGroup parent = findViewById(R.id.main_form);
         Transition transition = new Slide(Gravity.START);
         transition.setDuration(450);
         transition.setInterpolator(new AccelerateDecelerateInterpolator());
@@ -203,11 +242,11 @@ public class LoginActivity extends AppCompatActivity {
 
         signupConstraint.setVisibility(View.GONE);
         loginConstraint.setVisibility(View.VISIBLE);
-
-
     }
+
+
     private void transitionSignupForm(){
-        ViewGroup parent = findViewById(R.id.main);
+        ViewGroup parent = findViewById(R.id.main_form);
         Transition transition = new Slide(Gravity.END);
         transition.setDuration(450);
         transition.setInterpolator(new AccelerateDecelerateInterpolator());

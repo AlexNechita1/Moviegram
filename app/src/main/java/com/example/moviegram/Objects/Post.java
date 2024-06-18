@@ -1,9 +1,10 @@
 package com.example.moviegram.Objects;
 
 public class Post {
-    private String author,timestamp,imageUrl,authorImageUrl,title,content,movieTitle;
+    private String postkey,uid,author,timestamp,imageUrl,authorImageUrl,title,content,movieTitle,likes;
 
-    public Post(String author, String timestamp, String imageUrl, String authorImageUrl, String title, String content, String movieTitle) {
+    public Post(String postkey,String uid,String author, String timestamp, String imageUrl, String authorImageUrl, String title, String content, String movieTitle,String likes) {
+        this.uid = uid;
         this.author = author;
         this.timestamp = timestamp;
         this.imageUrl = imageUrl;
@@ -11,10 +12,25 @@ public class Post {
         this.title = title;
         this.content = content;
         this.movieTitle = movieTitle;
+        this.likes = likes;
+        this.postkey = postkey;
     }
 
     public Post() {
     }
+
+    public String getPostkey() {
+        return postkey;
+    }
+
+    public String getLikes() {
+        return likes;
+    }
+
+    public String getUid() {
+        return uid;
+    }
+
     public String getAuthor() {
         return author;
     }

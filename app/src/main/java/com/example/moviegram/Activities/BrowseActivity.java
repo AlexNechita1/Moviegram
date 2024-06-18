@@ -18,6 +18,7 @@ import android.widget.CheckBox;
 import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.RadioButton;
 import android.widget.SeekBar;
@@ -80,6 +81,7 @@ public class BrowseActivity extends AppCompatActivity implements OnYearSelectedL
     private List<CastMember> allCastMembers;
     private List<MovieSearchResult> allMovies;
     private Button filterBtn,showFiltersBtn;
+    private ImageView bkButton;
     private Handler handler;
     private Runnable updateFilterRunnable;
     private RadioButton rbCategories,rbCast,rbReleaseYear;
@@ -99,6 +101,13 @@ public class BrowseActivity extends AppCompatActivity implements OnYearSelectedL
     }
 
     private void initView() {
+        bkButton = findViewById(R.id.backBtn);
+        bkButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                onBackPressed();
+            }
+        });
         allMovies = new ArrayList<>();
         searchRecycler = findViewById(R.id.search_recycler);
         filteredMovies = new ArrayList<>();
@@ -129,6 +138,7 @@ public class BrowseActivity extends AppCompatActivity implements OnYearSelectedL
         allAvailableYears = new ArrayList<>();
         bottomSheetBehavior = BottomSheetBehavior.from(bottomSheet);
         db = FirebaseFirestore.getInstance();
+
 
         handler = new Handler();
         updateFilterRunnable = new Runnable() {
@@ -221,7 +231,6 @@ public class BrowseActivity extends AppCompatActivity implements OnYearSelectedL
                 Intent intent = new Intent(BrowseActivity.this, DetailActivity.class);
                 Bundle bundle = new Bundle();
                 bundle.putString("ITEM_TITLE", movie.getTitle());
-                bundle.putString("START_LOCATION", "BrowseActivitySearch");
                 intent.putExtras(bundle);
                 BrowseActivity.this.startActivity(intent);
             }

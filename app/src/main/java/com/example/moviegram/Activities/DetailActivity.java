@@ -5,10 +5,12 @@ import static android.content.ContentValues.TAG;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.widget.AdapterView;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -20,6 +22,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.bumptech.glide.Glide;
 import com.example.moviegram.Adapters.CastAdapter;
 import com.example.moviegram.Adapters.CategoryAdapter;
+import com.example.moviegram.Adapters.CustomSpinnerAdapter;
 import com.example.moviegram.Objects.CastItem;
 import com.example.moviegram.Objects.CategoryItem;
 import com.example.moviegram.Objects.Post;
@@ -54,12 +57,15 @@ public class DetailActivity extends AppCompatActivity {
     private TextView titleName,titleRating, titleReleaseYear,titleMainPlot;
     private RecyclerView recyclerCategory,recyclerCast;
     private ProgressBar loadingPoster;
-    private ImageView poster,addBtn,likeBtn;
+    private ImageView poster,bkButton,plusBtn;
     private FirebaseFirestore db;
     private FirebaseAuth mAuth;
     private Button postBtn;
     private EditText contentEdit;
     private DatabaseReference postsRef;
+    private Spinner spinner;
+    private List<String> listOfGenres;
+
     private boolean isLiked,isInWatchlist;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -71,6 +77,8 @@ public class DetailActivity extends AppCompatActivity {
     }
 
     private void initView() {
+        plusBtn = findViewById(R.id.add_title_btn);
+        bkButton = findViewById(R.id.backBtn);
         poster = findViewById(R.id.image_backgorund);
         titleName = findViewById(R.id.title_name);
         titleRating = findViewById(R.id.title_rating);
@@ -79,14 +87,69 @@ public class DetailActivity extends AppCompatActivity {
         recyclerCategory = findViewById(R.id.recycler_category);
         recyclerCast = findViewById(R.id.recycler_cast);
         loadingPoster = findViewById(R.id.loading_poster);
-        addBtn = findViewById(R.id.add_title_btn);
-        likeBtn = findViewById(R.id.like_title_btn);
+        listOfGenres = new ArrayList<>();
         mAuth = FirebaseAuth.getInstance();
         db = FirebaseFirestore.getInstance();
         isLiked = false;
         isInWatchlist = false;
         FirebaseUser currentUser = mAuth.getCurrentUser();
         String uid = "";
+
+        plusBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if(isInWatchlist){
+                    String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
+                    DocumentReference userDocRef = db.collection("Users").document(uid);
+                    Map<String, Object> updates = new HashMap<>();
+                    updates.put("watchlist", FieldValue.arrayRemove(title));
+                    userDocRef.set(updates, SetOptions.merge())
+                            .addOnSuccessListener(new OnSuccessListener<Void>() {
+                                @Override
+                                public void onSuccess(Void aVoid) {
+                                    Log.d(TAG, "Title removed successfully from watchlist");
+                                    plusBtn.setImageResource(R.drawable.plus);
+                                    isInWatchlist = false;
+                                }
+                            })
+                            .addOnFailureListener(new OnFailureListener() {
+                                @Override
+                                public void onFailure(@NonNull Exception e) {
+                                    Log.e(TAG, "Error removing title from watchlist", e);
+                                }
+                            });
+                }else if(isLiked){
+                    String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
+                    DocumentReference userDocRef = db.collection("Users").document(uid);
+                    Map<String, Object> updates = new HashMap<>();
+                    updates.put("liked", FieldValue.arrayRemove(title));
+                    userDocRef.set(updates, SetOptions.merge())
+                            .addOnSuccessListener(new OnSuccessListener<Void>() {
+                                @Override
+                                public void onSuccess(Void aVoid) {
+                                    Log.d(TAG, "Title removed successfully from liked");
+                                    plusBtn.setImageResource(R.drawable.plus);
+                                    isLiked = false;
+                                    //updateGenreCounts(mAuth.getUid(),listOfGenres,false);
+                                }
+                            })
+                            .addOnFailureListener(new OnFailureListener() {
+                                @Override
+                                public void onFailure(@NonNull Exception e) {
+                                    Log.e(TAG, "Error removing title from liked", e);
+                                }
+                            });
+                }
+                spinner.setVisibility(View.VISIBLE);
+            }
+        });
+
+        bkButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                onBackPressed();
+            }
+        });
 
         if (currentUser != null) {
             uid = currentUser.getUid();
@@ -123,17 +186,13 @@ public class DetailActivity extends AppCompatActivity {
                                     }
                                     if (watchedTitles.contains(title)) {
                                         isInWatchlist = true;
-                                        addBtn.setImageResource(R.drawable.check);
-                                        Log.d("WATCHLIST", "Title is in the watchlist");
+                                        plusBtn.setImageResource(R.drawable.check);
                                     } else {
-                                        Log.d("WATCHLIST", "Title is NOT in the watchlist");
                                     }
                                     if (likedTitles.contains(title)) {
                                         isLiked = true;
-                                        likeBtn.setImageResource(R.drawable.red_heart);
-                                        Log.d("LIKED", "Title is in the liked list");
+                                        plusBtn.setImageResource(R.drawable.red_heart);
                                     } else {
-                                        Log.d("LIKED", "Title is NOT in the liked list");
                                     }
 
                                 }
@@ -142,8 +201,6 @@ public class DetailActivity extends AppCompatActivity {
                             }
                         }
                     });
-        } else {
-            Log.d(TAG, "No user is currently logged in");
         }
 
         db.collection("Movies")
@@ -166,6 +223,7 @@ public class DetailActivity extends AppCompatActivity {
                                     for (Object obj : genres) {
                                         if (obj instanceof String) {
                                             genresList.add(new CategoryItem((String) obj));
+                                            listOfGenres.add((String) obj);
                                         }
                                     }
                                 }
@@ -217,102 +275,114 @@ public class DetailActivity extends AppCompatActivity {
                     }
                 });
 
-        addBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if(!isInWatchlist){
-                    String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
-                    DocumentReference userDocRef = db.collection("Users").document(uid);
-                    Map<String, Object> updates = new HashMap<>();
-                    updates.put("watchlist", FieldValue.arrayUnion(title));
-                    userDocRef.set(updates, SetOptions.merge())
-                            .addOnSuccessListener(new OnSuccessListener<Void>() {
-                                @Override
-                                public void onSuccess(Void aVoid) {
-                                    Log.d(TAG, "Watchlist updated successfully");
-                                    addBtn.setImageResource(R.drawable.check);
-                                    isInWatchlist = true;
-                                }
-                            })
-                            .addOnFailureListener(new OnFailureListener() {
-                                @Override
-                                public void onFailure(@NonNull Exception e) {
-                                    Log.e(TAG, "Error updating watchlist", e);
-                                }
-                            });
-                }else {
-                    String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
-                    DocumentReference userDocRef = db.collection("Users").document(uid);
-                    Map<String, Object> updates = new HashMap<>();
-                    updates.put("watchlist", FieldValue.arrayRemove(title));
-                    userDocRef.set(updates, SetOptions.merge())
-                            .addOnSuccessListener(new OnSuccessListener<Void>() {
-                                @Override
-                                public void onSuccess(Void aVoid) {
-                                    Log.d(TAG, "Title removed successfully from watchlist");
-                                    addBtn.setImageResource(R.drawable.plus);
-                                    isInWatchlist = false;
-                                }
-                            })
-                            .addOnFailureListener(new OnFailureListener() {
-                                @Override
-                                public void onFailure(@NonNull Exception e) {
-                                    Log.e(TAG, "Error removing title from watchlist", e);
-                                }
-                            });
-                }
-
-            }
-        });
-        likeBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if(!isLiked){
-                    String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
-                    DocumentReference userDocRef = db.collection("Users").document(uid);
-                    Map<String, Object> updates = new HashMap<>();
-                    updates.put("liked", FieldValue.arrayUnion(title));
-                    userDocRef.set(updates, SetOptions.merge())
-                            .addOnSuccessListener(new OnSuccessListener<Void>() {
-                                @Override
-                                public void onSuccess(Void aVoid) {
-                                    Log.d(TAG, "Liked updated successfully");
-                                    likeBtn.setImageResource(R.drawable.red_heart);
-                                    isLiked = true;
-                                }
-                            })
-                            .addOnFailureListener(new OnFailureListener() {
-                                @Override
-                                public void onFailure(@NonNull Exception e) {
-                                    Log.e(TAG, "Error updating liked", e);
-                                }
-                            });
-                }else {
-                    String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
-                    DocumentReference userDocRef = db.collection("Users").document(uid);
-                    Map<String, Object> updates = new HashMap<>();
-                    updates.put("liked", FieldValue.arrayRemove(title));
-                    userDocRef.set(updates, SetOptions.merge())
-                            .addOnSuccessListener(new OnSuccessListener<Void>() {
-                                @Override
-                                public void onSuccess(Void aVoid) {
-                                    Log.d(TAG, "Title removed successfully from liked");
-                                    likeBtn.setImageResource(R.drawable.white_heart);
-                                    isLiked = false;
-                                }
-                            })
-                            .addOnFailureListener(new OnFailureListener() {
-                                @Override
-                                public void onFailure(@NonNull Exception e) {
-                                    Log.e(TAG, "Error removing title from liked", e);
-                                }
-                            });
-                }
-            }
-        });
+        initSpinner();
         initPost();
 
     }
+
+    private void initSpinner() {
+        String[] options = {"","Already watched this title? Like!", "Plan to watch this title? Watchlist!"};
+        spinner = findViewById(R.id.sort_spinner);
+        CustomSpinnerAdapter adapter = new CustomSpinnerAdapter(this, R.layout.spinner_item_layout, options);
+        spinner.setAdapter(adapter);
+        spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+
+                if(position == 1) {
+                        String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
+                        DocumentReference userDocRef = db.collection("Users").document(uid);
+                        Map<String, Object> updates = new HashMap<>();
+                        updates.put("liked", FieldValue.arrayUnion(title));
+                        userDocRef.set(updates, SetOptions.merge())
+                                .addOnSuccessListener(new OnSuccessListener<Void>() {
+                                    @Override
+                                    public void onSuccess(Void aVoid) {
+                                        Log.d(TAG, "Liked updated successfully");
+                                        plusBtn.setImageResource(R.drawable.red_heart);
+                                        isLiked = true;
+                                        spinner.setVisibility(View.GONE);
+                                        updateGenreCount(mAuth.getUid(),listOfGenres);
+                                    }
+                                })
+                                .addOnFailureListener(new OnFailureListener() {
+                                    @Override
+                                    public void onFailure(@NonNull Exception e) {
+                                        Log.e(TAG, "Error updating liked", e);
+                                    }
+                                });
+
+                }else if(position == 2){
+
+                        String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
+                        DocumentReference userDocRef = db.collection("Users").document(uid);
+                        Map<String, Object> updates = new HashMap<>();
+                        updates.put("watchlist", FieldValue.arrayUnion(title));
+                        userDocRef.set(updates, SetOptions.merge())
+                                .addOnSuccessListener(new OnSuccessListener<Void>() {
+                                    @Override
+                                    public void onSuccess(Void aVoid) {
+                                        Log.d(TAG, "Watchlist updated successfully");
+                                        plusBtn.setImageResource(R.drawable.check);
+                                        isInWatchlist = true;
+                                        spinner.setVisibility(View.GONE);
+
+                                    }
+                                })
+                                .addOnFailureListener(new OnFailureListener() {
+                                    @Override
+                                    public void onFailure(@NonNull Exception e) {
+                                        Log.e(TAG, "Error updating watchlist", e);
+                                    }
+                                });
+                    }
+
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+
+            }
+        });
+    }
+
+    public void updateGenreCount(String userId, List<String> genres) {
+        DocumentReference userRef = db.collection("Users").document(userId);
+
+        // Fetch current document and update genre counts
+        userRef.get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
+            @Override
+            public void onComplete(Task<DocumentSnapshot> task) {
+                if (task.isSuccessful()) {
+                    DocumentSnapshot document = task.getResult();
+                    if (document.exists()) {
+                        // Get current data as a Map
+                        Map<String, Object> map = document.getData();
+
+                        // Initialize or update genre counts
+                        Map<String, Object> genreCounts = map != null && map.containsKey("genreCounts") ?
+                                (Map<String, Object>) map.get("genreCounts") : new HashMap<>();
+
+                        // Update genre counts for the specified genres
+                        for (String genre : genres) {
+                            Long count = genreCounts.containsKey(genre) ? (Long) genreCounts.get(genre) + 1 : 1;
+                            genreCounts.put(genre, count);
+                        }
+
+                        // Update or create the genreCounts map in Firestore
+                        userRef.update("genreCounts", genreCounts)
+                                .addOnSuccessListener(aVoid -> Log.d(TAG, "Genre counts updated successfully"))
+                                .addOnFailureListener(e -> Log.e(TAG, "Error updating genre counts", e));
+                    } else {
+                        Log.d(TAG, "No such document");
+                    }
+                } else {
+                    Log.e(TAG, "Error getting document", task.getException());
+                }
+            }
+        });
+    }
+
 
     private void initPost() {
         FirebaseDatabase database = FirebaseDatabase.getInstance("https://moviegram-f31cf-default-rtdb.europe-west1.firebasedatabase.app/");
@@ -333,7 +403,7 @@ public class DetailActivity extends AppCompatActivity {
         String postId = postsRef.push().getKey();
 
         if (postId != null) {
-            Post post = new Post(username, getCurrentTimestamp(),downloadUrl,profileUrl,userTitle,content,titleName.getText().toString().trim());
+            Post post = new Post(postId,mAuth.getUid(),username, getCurrentTimestamp(),downloadUrl,profileUrl,userTitle,content,titleName.getText().toString().trim(),"0");
             postsRef.child(postId).setValue(post).addOnCompleteListener(task -> {
                 if (task.isSuccessful()) {
                     Toast.makeText(DetailActivity.this, "Post added successfully", Toast.LENGTH_SHORT).show();

@@ -20,12 +20,13 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.bumptech.glide.Glide;
 import com.example.moviegram.Adapters.CastAdapter;
 import com.example.moviegram.Adapters.MovieItemAdapter;
-import com.example.moviegram.Adapters.MovieSectionedCastAdapter;
 import com.example.moviegram.Adapters.PostAdapter;
 import com.example.moviegram.Objects.CastItem;
 import com.example.moviegram.Objects.Movie;
 import com.example.moviegram.Objects.Post;
 import com.example.moviegram.R;
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
@@ -33,7 +34,9 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.Query;
 import com.google.firebase.database.ValueEventListener;
+import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
+import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 
@@ -41,63 +44,53 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-public class AccountActivity extends AppCompatActivity {
+public class ProfileActivity extends AppCompatActivity {
     private FirebaseAuth mAuth;
-    private Button signoutBtn;
     private FirebaseFirestore db;
     private DatabaseReference postsRef;
     private PostAdapter postAdapter;
     private List<Post> postList;
-    private String currentUserId;
-    private ImageView backgroundImg,profileImg,settingsBtn,backBtn;
-    private TextView usernameTx,titleTx,followersTx;
+    private String profileUid;
+    private ImageView backgroundImg,profileImg,backBtn;
+    private TextView usernameTx,titleTx,followersTx,txFollowBtn,txUnfollowBtn;
     private RecyclerView topMoviesRecycler,favoriteCastRecycler,postRecycler;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_account);
-        initView();
-    }
+        setContentView(R.layout.activity_profile);
+        Intent intent = getIntent();
+        Bundle bundle = intent.getExtras();
+        if (bundle != null) {
+            profileUid = bundle.getString("UID");
+            Log.d("profileID",profileUid);
+            initView();
+        } else {
+            onBackPressed();
+        }
 
+    }
     private void initView() {
         backBtn = findViewById(R.id.backBtn);
-        settingsBtn = findViewById(R.id.settingBtn);
+        backBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                onBackPressed();
+            }
+        });
+        txFollowBtn = findViewById(R.id.tx_follow_button);
+        txUnfollowBtn = findViewById(R.id.tx_unfollow_button);
+        postRecycler = findViewById(R.id.posts_recycler);
         favoriteCastRecycler = findViewById(R.id.favorite_actors_recycler);
         topMoviesRecycler = findViewById(R.id.top_recomandation_recycler);
         mAuth=FirebaseAuth.getInstance();
         db = FirebaseFirestore.getInstance();
-        currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid();
         backgroundImg = findViewById(R.id.image_backgorund);
         profileImg = findViewById(R.id.profile_image);
         usernameTx = findViewById(R.id.tx_username);
         titleTx = findViewById(R.id.tx_title);
         followersTx = findViewById(R.id.tx_followers);
-        signoutBtn = findViewById(R.id.button_signout);
-        postRecycler = findViewById(R.id.posts_recycler);
-
-        backBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Intent intent = new Intent(AccountActivity.this, MainActivity.class);
-                startActivity(intent);
-            }
-        });
-        signoutBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                mAuth.signOut();
-                startActivity(new Intent(AccountActivity.this, IntroActivity.class));
-            }
-        });
-        retrieveDatabase();
-        settingsBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Intent intent = new Intent(AccountActivity.this, SettingsActivity.class);
-                startActivity(intent);
-            }
-        });
-
+        retrieveDatabase(profileUid);
+        initFollow();
         postRecycler.setLayoutManager(new LinearLayoutManager(this));
 
         postList = new ArrayList<>();
@@ -106,12 +99,9 @@ public class AccountActivity extends AppCompatActivity {
         FirebaseDatabase database = FirebaseDatabase.getInstance("https://moviegram-f31cf-default-rtdb.europe-west1.firebasedatabase.app/");
         postsRef = database.getReference("posts");
         fetchPosts();
-
     }
-
     private void fetchPosts() {
-        Query query = postsRef.orderByChild("uid").equalTo(currentUserId);
-
+        Query query = postsRef.orderByChild("uid").equalTo(profileUid);
         query.addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
@@ -141,7 +131,58 @@ public class AccountActivity extends AppCompatActivity {
         });
     }
 
-    private void retrieveDatabase() {
+    private void initFollow() {
+        txFollowBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                txFollowBtn.setVisibility(View.GONE);
+                int currentFollowers = Integer.parseInt(followersTx.getText().toString());
+                DocumentReference userDocRef = db.collection("Users").document(profileUid);
+                userDocRef.update(
+                        "followers", FieldValue.increment(1),
+                        "list_of_followers", FieldValue.arrayUnion(mAuth.getUid())
+                ).addOnSuccessListener(new OnSuccessListener<Void>() {
+                    @Override
+                    public void onSuccess(Void aVoid) {
+                        followersTx.setText(String.valueOf(currentFollowers + 1));
+                        txUnfollowBtn.setVisibility(View.VISIBLE);
+                    }
+                }).addOnFailureListener(new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        Log.w("Firestore", "Error updating document", e);
+                        txFollowBtn.setVisibility(View.VISIBLE);
+                    }
+                });
+            }
+        });
+        txUnfollowBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                txUnfollowBtn.setVisibility(View.GONE);
+                int currentFollowers = Integer.parseInt(followersTx.getText().toString());
+                DocumentReference userDocRef = db.collection("Users").document(profileUid);
+                userDocRef.update(
+                        "followers", FieldValue.increment(-1),
+                        "list_of_followers", FieldValue.arrayRemove(mAuth.getUid())
+                ).addOnSuccessListener(new OnSuccessListener<Void>() {
+                    @Override
+                    public void onSuccess(Void aVoid) {
+                        followersTx.setText(String.valueOf(currentFollowers - 1));
+                        txFollowBtn.setVisibility(View.VISIBLE);
+                    }
+                }).addOnFailureListener(new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        Log.w("Firestore", "Error updating document", e);
+                        txUnfollowBtn.setVisibility(View.VISIBLE);
+                    }
+                });
+            }
+        });
+    }
+
+    private void retrieveDatabase(String currentUserId) {
         db.collection("Users").document(currentUserId).get()
                 .addOnCompleteListener(task -> {
                     if (task.isSuccessful()) {
@@ -155,7 +196,13 @@ public class AccountActivity extends AppCompatActivity {
 
                             List<String> favoriteActors = document.contains("favorite_actors") ? (List<String>) document.get("favorite_actors") : new ArrayList<>();
                             List<String> topMovies = document.contains("top_movies") ? (List<String>) document.get("top_movies") : new ArrayList<>();
+                            List<String> followersList = document.contains("list_of_followers") ? (List<String>) document.get("list_of_followers") : new ArrayList<>();
 
+                            if(followersList.contains(mAuth.getUid())){
+                                txUnfollowBtn.setVisibility(View.VISIBLE);
+                            }else {
+                                txFollowBtn.setVisibility(View.VISIBLE);
+                            }
                             usernameTx.setText(username);
                             titleTx.setText(title);
                             followersTx.setText(followers);
@@ -243,5 +290,4 @@ public class AccountActivity extends AppCompatActivity {
                     }
                 });
     }
-
 }
